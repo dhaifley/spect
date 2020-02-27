@@ -14,6 +14,9 @@
 package spect
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -31,18 +34,8 @@ func TestRequestString(t *testing.T) {
 }
 
 func TestRequestEqual(t *testing.T) {
-	a := &Request{
-		URL:    "test.com",
-		Method: "GET",
-		Body:   "test",
-	}
-
-	b := &Request{
-		URL:    "test.com",
-		Method: "GET",
-		Body:   "test",
-	}
-
+	a := NewRequest("test.com", "GET", "test")
+	b := NewRequest("test.com", "GET", "test")
 	if !a.Equal(b) {
 		t.Error("Expected equal: true, got: false")
 	}
@@ -81,16 +74,8 @@ func TestResponseString(t *testing.T) {
 }
 
 func TestResponseEqual(t *testing.T) {
-	a := &Response{
-		Code: 200,
-		Body: "test",
-	}
-
-	b := &Response{
-		Code: 200,
-		Body: "test",
-	}
-
+	a := NewResponse(200, "test")
+	b := NewResponse(200, "test")
 	if !a.Equal(b) {
 		t.Error("Expected equal: true, got: false")
 	}
@@ -132,35 +117,34 @@ func TestSpecTestString(t *testing.T) {
 }
 
 func TestSpecTestEqual(t *testing.T) {
-	a := &SpecTest{
-		Req: &Request{
-			URL:    "test.com",
-			Method: "GET",
-			Body:   "test",
-		},
-		Res: &Response{
-			Code: 200,
-			Body: "test",
-		},
-	}
+	a := NewSpecTest(nil,
+		NewRequest("test.com", "GET", "test"),
+		NewResponse(200, "test"))
 
-	b := &SpecTest{
-		Req: &Request{
-			URL:    "test.com",
-			Method: "GET",
-			Body:   "test",
-		},
-		Res: &Response{
-			Code: 200,
-			Body: "test",
-		},
-	}
+	b := NewSpecTest(nil,
+		NewRequest("test.com", "GET", "test"),
+		NewResponse(200, "test"))
 
 	if !a.Equal(b) {
 		t.Error("Expected equal: true, got: false")
 	}
 
-	b.Res.Body = "error"
+	b.Res = NewResponse(500, "error")
+	if a.Equal(b) {
+		t.Error("Expected equal: false, got: true")
+	}
+
+	a.Res = NewResponse(200, "test")
+	if a.Equal(b) {
+		t.Error("Expected equal: false, got: true")
+	}
+
+	b.Exp.Body = "error"
+	if a.Equal(b) {
+		t.Error("Expected equal: false, got: true")
+	}
+
+	a.Exp = nil
 	if a.Equal(b) {
 		t.Error("Expected equal: false, got: true")
 	}
@@ -170,8 +154,35 @@ func TestSpecTestEqual(t *testing.T) {
 		t.Error("Expected equal: false, got: true")
 	}
 
+	a.Req = nil
+	if a.Equal(b) {
+		t.Error("Expected equal: false, got: true")
+	}
+
 	b = nil
 	if a.Equal(b) {
 		t.Error("Expected equal: false, got: true")
+	}
+}
+
+func TestSpecTestRun(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(200)
+			fmt.Fprintln(w, "test")
+		}))
+	defer ts.Close()
+
+	st := NewSpecTest(&http.Client{},
+		NewRequest(ts.URL, "GET", ""),
+		NewResponse(200, "test\n"))
+
+	pass, err := st.Run()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !pass {
+		t.Errorf("Expected response: %v, got: %v", st.Exp, st.Res)
 	}
 }
