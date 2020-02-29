@@ -114,9 +114,21 @@ func ParseMap(m map[string]interface{}, lvl []string,
 	return exs, nil
 }
 
-// ParseOpenAPI parses OpenAPI YAML specification data into a slice of
-// SpecTest values.
-func ParseOpenAPI(data string) ([]*Example, error) {
+// ParseExamples parses examples from OpenAPI specification data into a slice
+// of Example values.
+func ParseExamples(data string) ([]*Example, error) {
+	m := make(map[string]interface{}, 0)
+	err := yaml.NewDecoder(bytes.NewBufferString(data)).Decode(&m)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse yaml: %w", err)
+	}
+
+	return ParseMap(m, []string{}, []*Example{}, "", "")
+}
+
+// ParseTests parses integration testing data from OpenAPI YAML specification
+// data into a slice of SpecTest values.
+func ParseTests(data string) ([]*Example, error) {
 	m := make(map[string]interface{}, 0)
 	err := yaml.NewDecoder(bytes.NewBufferString(data)).Decode(&m)
 	if err != nil {

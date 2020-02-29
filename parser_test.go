@@ -177,11 +177,35 @@ tags:
       brokers servers.
 `
 
-func TestParseOpenAPI(t *testing.T) {
-	tests, err := ParseOpenAPI(testSpecData)
+func TestParseExamples(t *testing.T) {
+	examples, err := ParseExamples(testSpecData)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Errorf("%+v", tests)
+	if len(examples) != 9 {
+		t.Fatalf("Expected length: 9, got: %v", len(examples))
+	}
+
+	expA := `{"Name":"id","Type":"integer","Levels":["paths","/broker/{id}",` +
+		`"get","parameters","schema"],"Example":1}` + "\n"
+	expB := `{"Name":"_cid","Type":"string","Levels":["components",` +
+		`"schemas","Broker","properties","_cid"],"Example":"/broker/1"}` + "\n"
+	passA, passB := false, false
+	for _, ex := range examples {
+		switch {
+		case ex.String() == expA:
+			passA = true
+		case ex.String() == expB:
+			passB = true
+		}
+	}
+
+	if !passA {
+		t.Errorf("Expected example: %v, got: %v", expA, examples)
+	}
+
+	if !passB {
+		t.Errorf("Expected example: %v, got: %v", expB, examples)
+	}
 }
